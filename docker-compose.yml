@@ -1,0 +1,130 @@
+
+services:
+
+  django_test:
+    build: .
+    container_name: django_test
+    volumes:
+      - media:/app/media
+      - static_file:/stat//staticfile
+
+
+    command: >
+      sh -c "
+      pip uninstall -y redis &&
+      pip install --no-cache-dir redis==7.4.0 &&
+      python manage.py makemigrations &&
+      python manage.py migrate &&
+      python manage.py collectstatic --noinput &&
+      gunicorn bakery.wsgi
+      "
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis_django:
+        condition: service_healthy
+    networks:
+      - test
+
+  postgres:
+    container_name: postgres_test
+    image: postgres
+    volumes:
+      - db-data:/var/lib/postgresql
+      - ./init.sql:/docker-entrypoint-initdb.d/db.sql
+    environment:
+      - POSTGRES_PASSWORD="1234"
+      - POSTGRES_DB="bakery"
+    networks:
+      - test
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "postgres" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+
+  redis_django:
+
+    image: redis
+
+    container_name: redist-test
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+    volumes:
+      - redis-data:/data
+
+    networks:
+      - test
+  celery:
+    image:  bakery-django_test
+    container_name: celery_test
+
+    command: >
+      sh -c "
+      pip uninstall -y redis &&
+      pip install --no-cache-dir redis==7.4.0 &&
+      celery -A bakery worker -l info
+      "
+    networks:
+      - test
+  celery_beat:
+    image: bakery-django_test
+    container_name: celery_beat_test
+    command: >
+      sh -c "
+      sleep 10 &&
+      pip uninstall -y redis &&
+      pip install --no-cache-dir redis==7.4.0 &&
+      celery -A bakery beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+      "
+    networks:
+      - test
+    depends_on:
+      postgres:
+        condition: service_healthy
+      django_test:
+        condition: service_started
+      celery:
+        condition: service_started
+
+
+  nginx:
+    image: nginx
+    depends_on:
+      - django_test
+
+    container_name: nginx_test
+
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - static_file:/stat//staticfile
+    networks:
+      - test
+
+
+
+
+networks:
+  test:
+    driver: bridge
+
+volumes:
+  redis-data:
+    name: redis
+
+  db-data:
+    name: data
+
+  media:
+    name: media
+
+  static_file:

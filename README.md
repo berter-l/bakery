@@ -60,14 +60,14 @@ REST API для интернет-магазина выпечки с систем
 
 Для генерации нового секретного ключа можно использовать следующий Python код:
 
-import secrets
-print(secrets.token_urlsafe(50))
+* import secrets
+* print(secrets.token_urlsafe(50))
 
 Запустить контейнеры:
 
-docker-compose build --no-cache
-docker-compose up -d
-После успешного запуска API будет доступно по адресу: http://localhost:8000
+* docker-compose build --no-cache
+* docker-compose up -d
+* После успешного запуска API будет доступно по адресу: http://localhost:8000
 
 Документация API доступна по адресу: http://localhost:8000/api/docs/
 # Применение миграций
@@ -76,6 +76,6 @@ python manage.py migrate
 # Создание суперпользователя
 При первом запуске автоматически создается суперпользователь с учетными данными:
 
-Username: admin
-Password: 1234
-Email: admin@gmail.com
+* Username: admin
+* Password: 1234
+* Email: admin@gmail.com
